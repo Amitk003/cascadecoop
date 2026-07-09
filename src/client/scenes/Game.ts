@@ -87,6 +87,16 @@ export class Game extends Scene {
 
     this.background = this.add.image(512, 384, 'background').setAlpha(0.15);
 
+    const grid = this.add.graphics();
+    grid.lineStyle(1, 0xffffff, 0.03);
+    for (let x = 0; x < BOARD_WIDTH; x += 40) {
+      grid.lineBetween(x, 0, x, BOARD_HEIGHT);
+    }
+    for (let y = 0; y < BOARD_HEIGHT; y += 40) {
+      grid.lineBetween(0, y, BOARD_WIDTH, y);
+    }
+    grid.setDepth(-2);
+
     this.matter.world.autoUpdate = false;
 
     this.setupBoundaries();
