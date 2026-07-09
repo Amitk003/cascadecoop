@@ -7,26 +7,25 @@
       name="viewport"
       content="initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, width=device-width, height=device-height, user-scalable=0"
     />
-    <title>devvit</title>
+    <title>cascadecoop</title>
   </head>
   <body class="app">
-    <img class="snoo" src="/snoo.png" alt="Snoo" />
     <div class="content">
       <h1 class="title" id="title"></h1>
-      <p class="description">
-        Edit <span class="code">src/client/splash.ts</span> to get started.
+      <p class="description" id="description">
+        Build a Rube-Goldberg machine with your community. Place one piece per day and watch marbles cascade.
       </p>
+      <div class="pieces-preview">
+        <span class="piece-chip ramp">Ramp</span>
+        <span class="piece-chip bumper">Bumper</span>
+        <span class="piece-chip well">Gravity Well</span>
+        <span class="piece-chip slide">Slide</span>
+        <span class="piece-chip block">Block</span>
+      </div>
     </div>
     <div>
-      <button class="start-button" id="start-button">Start</button>
+      <button class="start-button" id="start-button">Play</button>
     </div>
-    <footer class="footer">
-      <div class="docs-link" tabindex="0" id="docs-link">Docs</div>
-      <span class="divider">|</span>
-      <div class="docs-link" tabindex="0" id="playtest-link">r/Devvit</div>
-      <span class="divider">|</span>
-      <div class="docs-link" tabindex="0" id="discord-link">Discord</div>
-    </footer>
     <script type="module" src="splash.ts" defer></script>
   </body>
 </html>
