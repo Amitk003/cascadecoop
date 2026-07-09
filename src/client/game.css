@@ -1,9 +1,11 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap');
+
 body {
   margin: 0;
   padding: 0;
   color: rgba(255, 255, 255, 0.87);
   background-color: #0f0f0f;
-  font-family: 'Arial', sans-serif;
+  font-family: 'Outfit', 'Arial', sans-serif;
   user-select: none;
 }
 
@@ -26,12 +28,8 @@ body {
   pointer-events: none;
 }
 
-#top-bar,
-#bottom-bar,
-#piece-inventory,
-#score-display,
-#simulate-btn,
-#leaderboard-toggle,
+#top-bar > *,
+#bottom-bar > *,
 #placement-status {
   pointer-events: auto;
 }
@@ -48,16 +46,20 @@ body {
 }
 
 #piece-inventory {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 6px 14px;
+  background: rgba(18, 18, 30, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 7px 16px;
   font-size: 14px;
   color: #fff;
+  font-weight: 500;
+  letter-spacing: 0.3px;
 }
 
 #piece-inventory .piece-label {
-  font-weight: bold;
+  font-weight: 600;
 }
 
 #piece-inventory .piece-icon {
@@ -70,34 +72,47 @@ body {
 }
 
 #score-display {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 6px 14px;
+  background: rgba(18, 18, 30, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+  border-radius: 10px;
+  padding: 7px 16px;
   font-size: 14px;
+  font-weight: 600;
   color: #ffd700;
   margin-left: auto;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 12px rgba(255, 215, 0, 0.2);
 }
 
 #help-btn {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 6px 14px;
-  font-size: 14px;
-  color: #fff;
+  background: rgba(18, 18, 30, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 7px 16px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #aaa;
   cursor: pointer;
   pointer-events: auto;
+  transition: all 0.2s ease;
 }
 
 #help-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  color: #fff;
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
 }
 
 #help-modal {
   position: absolute;
   inset: 0;
-  background: rgba(0, 0, 0, 0.85);
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -110,53 +125,72 @@ body {
 }
 
 #help-content {
-  background: #1a1a2e;
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 12px;
-  padding: 24px;
-  max-width: 300px;
+  background: rgba(18, 18, 30, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 16px;
+  padding: 28px;
+  max-width: 320px;
   text-align: center;
   color: #fff;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
 }
 
 #help-content h2 {
   margin: 0 0 16px;
   color: #ffd700;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: 0.5px;
 }
 
 #help-content p {
-  margin: 8px 0;
+  margin: 10px 0;
   font-size: 14px;
-  line-height: 1.5;
-  color: #ccc;
+  line-height: 1.6;
+  color: #bbb;
+  font-weight: 400;
 }
 
 #close-help-btn {
-  background: #9b59b6;
+  background: linear-gradient(135deg, #9b59b6, #8e44ad);
   border: none;
-  border-radius: 6px;
-  padding: 8px 20px;
+  border-radius: 8px;
+  padding: 10px 24px;
   color: #fff;
+  font-weight: 600;
+  font-size: 14px;
+  font-family: inherit;
   cursor: pointer;
-  margin-top: 16px;
+  margin-top: 18px;
+  transition: all 0.2s ease;
+  letter-spacing: 0.3px;
 }
 
 #close-help-btn:hover {
-  background: #8e44ad;
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(155, 89, 182, 0.4);
 }
 
 #leaderboard-toggle {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 6px 14px;
+  background: rgba(18, 18, 30, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 7px 16px;
   font-size: 14px;
+  font-weight: 500;
   color: #fff;
   cursor: pointer;
+  transition: all 0.2s ease;
+  letter-spacing: 0.3px;
 }
 
 #leaderboard-toggle:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
 }
 
 #placement-status {
@@ -164,15 +198,20 @@ body {
   bottom: 60px;
   left: 50%;
   transform: translateX(-50%);
-  background: rgba(0, 0, 0, 0.7);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 8px 20px;
+  background: rgba(18, 18, 30, 0.75);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 10px 24px;
   font-size: 15px;
+  font-weight: 500;
   color: #fff;
   text-align: center;
   white-space: nowrap;
   z-index: 10;
+  letter-spacing: 0.3px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 }
 
 #bottom-bar {
@@ -181,38 +220,53 @@ body {
   left: 50%;
   transform: translateX(-50%);
   display: flex;
-  gap: 10px;
+  gap: 12px;
   z-index: 10;
 }
 
 #simulate-btn {
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 8px;
-  padding: 8px 24px;
+  background: rgba(18, 18, 30, 0.65);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 10px;
+  padding: 10px 28px;
   font-size: 15px;
+  font-weight: 600;
   color: #fff;
   cursor: pointer;
   text-align: center;
+  font-family: inherit;
+  letter-spacing: 0.5px;
+  transition: all 0.2s ease;
 }
 
 #simulate-btn:hover {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.1);
+  transform: scale(1.05);
+  box-shadow: 0 0 16px rgba(255, 255, 255, 0.1);
 }
 
 #rotate-btn {
-  background: rgba(155, 89, 182, 0.5);
-  border: 1px solid rgba(155, 89, 182, 0.5);
-  border-radius: 8px;
-  padding: 8px 16px;
+  background: rgba(155, 89, 182, 0.3);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(155, 89, 182, 0.3);
+  border-radius: 10px;
+  padding: 10px 20px;
   font-size: 13px;
+  font-weight: 500;
   color: #fff;
   cursor: pointer;
   text-align: center;
+  font-family: inherit;
+  transition: all 0.2s ease;
 }
 
 #rotate-btn:hover {
-  background: rgba(155, 89, 182, 0.7);
+  background: rgba(155, 89, 182, 0.5);
+  transform: scale(1.05);
+  box-shadow: 0 0 16px rgba(155, 89, 182, 0.2);
 }
 
 #rotate-btn.hidden {
@@ -224,15 +278,19 @@ body {
   position: absolute;
   top: 50px;
   right: 8px;
-  width: 220px;
-  max-height: 300px;
+  width: 240px;
+  max-height: 320px;
   overflow-y: auto;
-  background: rgba(0, 0, 0, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 8px;
-  padding: 10px;
+  background: rgba(18, 18, 30, 0.75);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-left: 3px solid #ffd700;
+  border-radius: 12px;
+  padding: 14px;
   z-index: 20;
   pointer-events: auto;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
 }
 
 #leaderboard-panel.visible {
@@ -242,35 +300,44 @@ body {
 #leaderboard-entries {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .leaderboard-row {
   display: flex;
   justify-content: space-between;
-  padding: 4px 6px;
+  padding: 6px 10px;
   font-size: 13px;
   color: #ccc;
-  border-radius: 4px;
+  border-radius: 6px;
+  transition: background 0.15s;
+}
+
+.leaderboard-row:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
 .leaderboard-row:nth-child(1) {
   color: #ffd700;
+  font-weight: 700;
 }
 
 .leaderboard-row:nth-child(2) {
   color: #c0c0c0;
+  font-weight: 600;
 }
 
 .leaderboard-row:nth-child(3) {
   color: #cd7f32;
+  font-weight: 600;
 }
 
 .leaderboard-row .lb-rank {
   width: 24px;
   text-align: right;
   margin-right: 8px;
-  color: #888;
+  color: #666;
+  font-weight: 500;
 }
 
 .leaderboard-row .lb-name {
@@ -278,16 +345,76 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  font-weight: 500;
 }
 
 .leaderboard-row .lb-score {
-  font-weight: bold;
+  font-weight: 700;
   margin-left: 8px;
 }
 
 .leaderboard-empty {
   text-align: center;
   color: #666;
-  padding: 16px 0;
+  padding: 20px 0;
   font-size: 13px;
+  font-weight: 500;
+}
+
+#tutorial-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 120px;
+}
+
+.tutorial-backdrop {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at center, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%);
+}
+
+.tutorial-box {
+  position: relative;
+  background: rgba(18, 18, 30, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  border-radius: 16px;
+  padding: 24px;
+  max-width: 280px;
+  text-align: center;
+  color: #fff;
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.15), 0 8px 40px rgba(0,0,0,0.5);
+}
+
+.tutorial-box p {
+  margin: 0 0 18px;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #eee;
+  font-weight: 500;
+}
+
+#tutorial-next-btn {
+  background: linear-gradient(135deg, #ffd700, #f0c800);
+  border: none;
+  border-radius: 8px;
+  padding: 10px 28px;
+  color: #1a1a2e;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 14px;
+  font-family: inherit;
+  letter-spacing: 0.3px;
+  transition: all 0.2s ease;
+}
+
+#tutorial-next-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
 }
