@@ -85,6 +85,7 @@ export class Game extends Scene {
 
     this.wireSimulateButton();
     this.wireLeaderboardToggle();
+    this.wireRotateButton();
 
     this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
       this.cameras.resize(gameSize.width, gameSize.height);
@@ -185,6 +186,9 @@ export class Game extends Scene {
 
     if (isWell) {
       this.gravityWells.push({ x: piece.x, y: piece.y, pullRadius: 120 });
+      this.add.circle(piece.x, piece.y, 120, 0x9b59b6, 0.03)
+        .setStrokeStyle(1, 0x9b59b6, 0.15)
+        .setDepth(-1);
     }
   }
 
@@ -212,6 +216,11 @@ export class Game extends Scene {
     this.placementActive = true;
     this.placementRotation = 0;
 
+    const rotateBtn = document.getElementById('rotate-btn');
+    if (rotateBtn) {
+      rotateBtn.classList.remove('hidden');
+    }
+
     this.input.on('pointermove', this.onPointerMove, this);
     this.input.on('pointerdown', this.onPointerDown, this);
 
@@ -222,6 +231,11 @@ export class Game extends Scene {
 
   private exitPlacementMode(): void {
     this.placementActive = false;
+
+    const rotateBtn = document.getElementById('rotate-btn');
+    if (rotateBtn) {
+      rotateBtn.classList.add('hidden');
+    }
 
     this.input.off('pointermove', this.onPointerMove, this);
     this.input.off('pointerdown', this.onPointerDown, this);
@@ -467,6 +481,19 @@ export class Game extends Scene {
         pool.release(marble);
       }
     }
+  }
+
+  private wireRotateButton(): void {
+    let btn = document.getElementById('rotate-btn');
+    if (!btn) return;
+
+    const newBtn = btn.cloneNode(true) as HTMLElement;
+    btn.parentNode?.replaceChild(newBtn, btn);
+    btn = newBtn;
+
+    btn.addEventListener('click', () => {
+      this.onKeyR();
+    });
   }
 
   private wireSimulateButton(): void {
