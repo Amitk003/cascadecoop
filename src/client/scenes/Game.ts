@@ -91,8 +91,12 @@ export class Game extends Scene {
   }
 
   private wireSimulateButton(): void {
-    const btn = document.getElementById('simulate-btn');
+    let btn = document.getElementById('simulate-btn');
     if (!btn) return;
+
+    const newBtn = btn.cloneNode(true) as HTMLElement;
+    btn.parentNode?.replaceChild(newBtn, btn);
+    btn = newBtn;
 
     btn.addEventListener('click', () => {
       if (this.isSimulating) {
