@@ -14,6 +14,7 @@ import {
   todayDate,
   getUserProfile,
   ensureDailyPiece,
+  consumeDailyPiece,
   getLeaderboard,
   acquireLock,
   releaseLock,
@@ -82,10 +83,8 @@ api.post('/board/place', async (c) => {
         userId,
       };
 
-      const success = await appendPiece(date, piece);
-      if (!success) {
-        return c.json({ status: 'error', message: 'Board was modified by another user, try again' }, 409);
-      }
+      await appendPiece(date, piece);
+      await consumeDailyPiece(userId);
 
       return c.json<PlacePieceResponse>({ success: true });
     } finally {

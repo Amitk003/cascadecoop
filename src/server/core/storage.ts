@@ -39,38 +39,36 @@ export async function getBoardState(date: string): Promise<BoardState> {
   }
 }
 
-export async function saveBoardState(state: BoardState): Promise<void> {
-  await redis.set(boardKey(state.date), JSON.stringify(state));
-}
-
-export async function appendPiece(
-  date: string,
-  newPiece: PlacedPiece
-): Promise<boolean> {
+export async function appendPiece(date: string, newPiece: PlacedPiece): Promise<void> {
   const key = boardKey(date);
 
-  const tx = await redis.watch(key);
-  const raw = await redis.get(key);
-  const current: BoardState = raw ? JSON.parse(raw) : { pieces: [], date };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const tx = await redis.watch(key);
+    const raw = await redis.get(key);
+    const state: BoardState = raw ? JSON.parse(raw) : { pieces: [], date };
+    state.pieces.push(newPiece);
+    await tx.multi();
+    await tx.set(key, JSON.stringify(state));
+    const results = await tx.exec();
 
-  current.pieces.push(newPiece);
+    if (results !== null) {
+      return;
+    }
+  }
 
-  await tx.multi();
-  await tx.set(key, JSON.stringify(current));
-  const results = await tx.exec();
-
-  return results !== null;
+  throw new Error('Failed to append piece after 3 attempts');
 }
 
 export async function getUserProfile(userId: string): Promise<UserProfile> {
   const raw = await redis.hGetAll(profileKey(userId));
   if (!raw || Object.keys(raw).length === 0) {
-    return { totalScore: 0, dailyPiece: null, lastActiveDate: '' };
+    return { totalScore: 0, dailyPiece: null, lastActiveDate: '', lastPlacementDate: '' };
   }
   return {
     totalScore: Number(raw.totalScore ?? 0),
     dailyPiece: raw.dailyPiece ? (raw.dailyPiece as PieceKind) : null,
     lastActiveDate: raw.lastActiveDate ?? '',
+    lastPlacementDate: raw.lastPlacementDate ?? '',
   };
 }
 
@@ -79,6 +77,10 @@ export async function ensureDailyPiece(
   profile: UserProfile
 ): Promise<UserProfile> {
   const today = todayDate();
+
+  if (profile.lastPlacementDate === today) {
+    return { ...profile, dailyPiece: null };
+  }
 
   if (profile.lastActiveDate === today && profile.dailyPiece) {
     return profile;
@@ -93,6 +95,7 @@ export async function ensureDailyPiece(
     totalScore: profile.totalScore,
     dailyPiece: kind,
     lastActiveDate: today,
+    lastPlacementDate: profile.lastPlacementDate,
   };
 
   const fields: Record<string, string> = {
@@ -107,18 +110,19 @@ export async function ensureDailyPiece(
   return updated;
 }
 
-export async function addScoreToUser(
-  userId: string,
-  points: number
-): Promise<void> {
+export async function consumeDailyPiece(userId: string): Promise<void> {
+  const today = todayDate();
+  await redis.hSet(profileKey(userId), {
+    dailyPiece: '',
+    lastPlacementDate: today,
+  });
+}
+
+export async function addScoreToUser(userId: string, points: number): Promise<void> {
   await redis.hIncrBy(profileKey(userId), 'totalScore', points);
 }
 
-export async function submitScore(
-  date: string,
-  username: string,
-  score: number
-): Promise<void> {
+export async function submitScore(date: string, username: string, score: number): Promise<void> {
   await redis.zAdd(leaderboardKey(date), { score, member: username });
 }
 

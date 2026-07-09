@@ -17,6 +17,7 @@ export type UserProfile = {
   totalScore: number;
   dailyPiece: PieceKind | null;
   lastActiveDate: string;
+  lastPlacementDate: string;
 };
 
 export type LeaderboardEntry = {
