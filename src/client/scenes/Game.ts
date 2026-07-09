@@ -1,13 +1,20 @@
 import { Scene } from 'phaser';
 import * as Phaser from 'phaser';
-import type { GameInitResponse } from '../../shared/api';
+import type { GameInitResponse, PlacedPiece, PieceKind } from '../../shared/api';
+import { fetchBoardState, fetchUserStatus, placePiece, fetchLeaderboard } from '../api';
 import { MarblePool } from '../physics/MarblePool';
+import { PIECE_DEFINITIONS } from '../physics/PieceTypes';
 
 const FIXED_DELTA = 1000 / 60;
 const SPAWN_ZONE_Y = 40;
 const GOAL_COUNT = 4;
 const BOARD_WIDTH = 800;
 const BOARD_HEIGHT = 600;
+
+type PieceBody = {
+  piece: PlacedPiece;
+  bodies: Phaser.Physics.Matter.Sprite[];
+};
 
 export class Game extends Scene {
   private camera: Phaser.Cameras.Scene2D.Camera;
@@ -16,6 +23,11 @@ export class Game extends Scene {
   private accumulator: number = 0;
   private isSimulating: boolean = false;
   private initData: GameInitResponse | null = null;
+  private placedBodies: PieceBody[] = [];
+  private userDailyPiece: PieceKind | null = null;
+  private hasPlacedToday: boolean = false;
+  private placementActive: boolean = false;
+  private previewSprite: Phaser.GameObjects.Sprite | null = null;
 
   constructor() {
     super('Game');
@@ -25,6 +37,11 @@ export class Game extends Scene {
     this.initData = data.initData;
     this.accumulator = 0;
     this.isSimulating = false;
+    this.placedBodies = [];
+    this.userDailyPiece = null;
+    this.hasPlacedToday = false;
+    this.placementActive = false;
+    this.previewSprite = null;
 
     const btn = document.getElementById('simulate-btn');
     if (btn) {
@@ -32,7 +49,7 @@ export class Game extends Scene {
     }
   }
 
-  create() {
+  async create() {
     this.camera = this.cameras.main;
     this.camera.setBackgroundColor(0x1a1a2e);
 
@@ -53,6 +70,7 @@ export class Game extends Scene {
     }
 
     this.wireSimulateButton();
+    this.wireLeaderboardToggle();
 
     this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
       this.cameras.resize(gameSize.width, gameSize.height);
@@ -60,11 +78,14 @@ export class Game extends Scene {
         this.background.setPosition(gameSize.width / 2, gameSize.height / 2);
         const scale = Math.max(
           gameSize.width / this.background.width,
-          gameSize.height / this.background.height
+          gameSize.height / this.background.height,
         );
         this.background.setScale(scale);
       }
     });
+
+    await this.loadBoard();
+    await this.loadUserStatus();
   }
 
   override update(_time: number, delta: number): void {
@@ -78,6 +99,247 @@ export class Game extends Scene {
     }
 
     this.recycleOffscreenMarbles();
+  }
+
+  private async loadBoard(): Promise<void> {
+    try {
+      const data = await fetchBoardState();
+      for (const piece of data.pieces) {
+        if (piece.userId !== `${this.initData?.postId}:${this.initData?.username}`) {
+          this.renderPiece(piece);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to load board:', err);
+    }
+  }
+
+  private async loadUserStatus(): Promise<void> {
+    try {
+      const data = await fetchUserStatus();
+      this.userDailyPiece = data.profile.dailyPiece;
+      this.hasPlacedToday = data.profile.lastPlacementDate !== '';
+
+      this.updateInventoryUI();
+      this.updatePlacementStatus();
+
+      if (!this.hasPlacedToday && this.userDailyPiece) {
+        this.enterPlacementMode();
+      }
+    } catch (err) {
+      console.error('Failed to load user status:', err);
+    }
+  }
+
+  private renderPiece(piece: PlacedPiece): void {
+    const def = PIECE_DEFINITIONS[piece.type];
+    if (!def) return;
+
+    const texKey = `piece_${piece.type}`;
+    const shapeOptions =
+      piece.type === 'bumper'
+        ? { shape: { type: 'circle' as const, radius: 20 } }
+        : piece.type === 'gravity_well'
+          ? { shape: { type: 'circle' as const, radius: 30 } }
+          : {};
+
+    const sprite = this.matter.add.sprite(piece.x, piece.y, texKey, undefined, {
+      isStatic: true,
+      label: def.label,
+      friction: def.friction,
+      restitution: def.restitution,
+      density: def.density,
+      collisionFilter: {
+        category: 0x0001,
+        mask: 0x0002,
+      },
+      ...shapeOptions,
+    });
+
+    sprite.setRotation(piece.rotation);
+    sprite.setDepth(0);
+
+    this.placedBodies.push({ piece, bodies: [sprite] });
+  }
+
+  private renderOwnPiece(piece: PlacedPiece): void {
+    this.renderPiece(piece);
+
+    const def = PIECE_DEFINITIONS[piece.type];
+    if (!def) return;
+
+    const colors: Record<PieceKind, string> = {
+      ramp: '#8b4513',
+      bumper: '#ff4444',
+      gravity_well: '#9b59b6',
+      slide: '#3498db',
+      block: '#555555',
+    };
+
+    const inv = document.getElementById('piece-inventory');
+    if (inv) {
+      inv.innerHTML = `<span class="piece-icon" style="background:${colors[piece.type] ?? '#888'}"></span><span class="piece-label">Placed ${def.label}</span>`;
+    }
+  }
+
+  private enterPlacementMode(): void {
+    this.placementActive = true;
+
+    this.input.on('pointermove', this.onPointerMove, this);
+    this.input.on('pointerdown', this.onPointerDown, this);
+  }
+
+  private exitPlacementMode(): void {
+    this.placementActive = false;
+
+    this.input.off('pointermove', this.onPointerMove, this);
+    this.input.off('pointerdown', this.onPointerDown, this);
+
+    if (this.previewSprite) {
+      this.previewSprite.destroy();
+      this.previewSprite = null;
+    }
+  }
+
+  private onPointerMove = (pointer: Phaser.Input.Pointer): void => {
+    if (!this.placementActive || !this.userDailyPiece) return;
+
+    const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+
+    if (!this.previewSprite) {
+      const texKey = `piece_${this.userDailyPiece}`;
+      if (this.textures.exists(texKey)) {
+        this.previewSprite = this.add.sprite(worldPoint.x, worldPoint.y, texKey);
+        this.previewSprite.setAlpha(0.6);
+        this.previewSprite.setDepth(5);
+      }
+    } else {
+      this.previewSprite.setPosition(worldPoint.x, worldPoint.y);
+    }
+  };
+
+  private onPointerDown = async (pointer: Phaser.Input.Pointer): Promise<void> => {
+    if (!this.placementActive || !this.userDailyPiece) return;
+
+    const worldPoint = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    const x = Phaser.Math.Clamp(worldPoint.x, 20, BOARD_WIDTH - 20);
+    const y = Phaser.Math.Clamp(worldPoint.y, 60, BOARD_HEIGHT - 60);
+
+    try {
+      await placePiece({
+        type: this.userDailyPiece,
+        x,
+        y,
+        rotation: 0,
+      });
+
+      this.hasPlacedToday = true;
+      this.renderOwnPiece({
+        type: this.userDailyPiece,
+        x,
+        y,
+        rotation: 0,
+        userId: '',
+      });
+      this.exitPlacementMode();
+      this.updatePlacementStatus();
+      this.updateInventoryUI();
+    } catch (err) {
+      console.error('Failed to place piece:', err);
+      const status = document.getElementById('placement-status');
+      if (status) {
+        status.textContent = 'Placement failed. Try again.';
+        status.style.color = '#ff4444';
+      }
+    }
+  };
+
+  private updateInventoryUI(): void {
+    const inv = document.getElementById('piece-inventory');
+    if (!inv) return;
+
+    const colors: Record<PieceKind, string> = {
+      ramp: '#8b4513',
+      bumper: '#ff4444',
+      gravity_well: '#9b59b6',
+      slide: '#3498db',
+      block: '#555555',
+    };
+
+    if (this.hasPlacedToday) {
+      inv.innerHTML = '<span style="color:#888">Piece placed today</span>';
+    } else if (this.userDailyPiece) {
+      const color = colors[this.userDailyPiece] ?? '#888';
+      const def = PIECE_DEFINITIONS[this.userDailyPiece];
+      const name = def?.label ?? this.userDailyPiece;
+      inv.innerHTML = `<span class="piece-icon" style="background:${color}"></span><span class="piece-label">${name}</span>`;
+    } else {
+      inv.innerHTML = '<span style="color:#888">No piece today</span>';
+    }
+  }
+
+  private updatePlacementStatus(): void {
+    const status = document.getElementById('placement-status');
+    if (!status) return;
+
+    if (this.isSimulating) {
+      status.textContent = 'Simulation running';
+      status.style.color = '#fff';
+    } else if (this.hasPlacedToday) {
+      status.textContent = 'Come back tomorrow for a new piece';
+      status.style.color = '#888';
+    } else if (this.userDailyPiece) {
+      const def = PIECE_DEFINITIONS[this.userDailyPiece];
+      const name = def?.label ?? this.userDailyPiece;
+      status.textContent = `Tap the board to place your ${name}`;
+      status.style.color = '#2ecc71';
+    } else {
+      status.textContent = 'Loading...';
+      status.style.color = '#888';
+    }
+  }
+
+  private async refreshLeaderboard(): Promise<void> {
+    const container = document.getElementById('leaderboard-entries');
+    if (!container) return;
+
+    try {
+      const data = await fetchLeaderboard();
+      if (data.entries.length === 0) {
+        container.innerHTML = '<div class="leaderboard-empty">No scores yet</div>';
+        return;
+      }
+
+      container.innerHTML = data.entries
+        .map(
+          (entry, i) =>
+            `<div class="leaderboard-row">
+              <span class="lb-rank">${i + 1}</span>
+              <span class="lb-name">${entry.username}</span>
+              <span class="lb-score">${entry.score}</span>
+            </div>`,
+        )
+        .join('');
+    } catch {
+      container.innerHTML = '<div class="leaderboard-empty">Failed to load</div>';
+    }
+  }
+
+  private wireLeaderboardToggle(): void {
+    let toggle = document.getElementById('leaderboard-toggle');
+    const panel = document.getElementById('leaderboard-panel');
+    if (!toggle || !panel) return;
+
+    const newToggle = toggle.cloneNode(true) as HTMLElement;
+    toggle.parentNode?.replaceChild(newToggle, toggle);
+    toggle = newToggle;
+
+    toggle.addEventListener('click', async () => {
+      const isVisible = panel.classList.toggle('visible');
+      if (isVisible) {
+        await this.refreshLeaderboard();
+      }
+    });
   }
 
   private recycleOffscreenMarbles(): void {
@@ -106,6 +368,7 @@ export class Game extends Scene {
         this.startSimulation();
         btn.textContent = 'Reset';
       }
+      this.updatePlacementStatus();
     });
   }
 
@@ -187,6 +450,10 @@ export class Game extends Scene {
   startSimulation(): void {
     this.accumulator = 0;
     this.isSimulating = true;
+
+    if (this.placementActive) {
+      this.exitPlacementMode();
+    }
 
     for (let i = 0; i < 50; i++) {
       const x = Phaser.Math.Between(100, BOARD_WIDTH - 100);

@@ -11,9 +11,18 @@
     <div id="app">
       <div id="game-container"></div>
       <div id="game-overlay">
-        <div id="piece-inventory"></div>
-        <div id="simulate-btn">Simulate</div>
-        <div id="score-display">Score: 0</div>
+        <div id="top-bar">
+          <div id="piece-inventory"></div>
+          <div id="score-display">Score: 0</div>
+          <div id="leaderboard-toggle">Leaderboard</div>
+        </div>
+        <div id="placement-status"></div>
+        <div id="bottom-bar">
+          <div id="simulate-btn">Simulate</div>
+        </div>
+        <div id="leaderboard-panel">
+          <div id="leaderboard-entries"></div>
+        </div>
       </div>
     </div>
     <script type="module" src="game.ts"></script>
