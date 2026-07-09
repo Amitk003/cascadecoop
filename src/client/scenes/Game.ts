@@ -16,6 +16,12 @@ type PieceBody = {
   bodies: Phaser.Physics.Matter.Sprite[];
 };
 
+type GravityWellData = {
+  x: number;
+  y: number;
+  pullRadius: number;
+};
+
 export class Game extends Scene {
   private camera: Phaser.Cameras.Scene2D.Camera;
   private background: Phaser.GameObjects.Image;
@@ -30,6 +36,8 @@ export class Game extends Scene {
   private previewSprite: Phaser.GameObjects.Sprite | null = null;
   private currentRunScore: number = 0;
   private roundEnded: boolean = false;
+  private placementRotation: number = 0;
+  private gravityWells: GravityWellData[] = [];
 
   constructor() {
     super('Game');
@@ -46,6 +54,8 @@ export class Game extends Scene {
     this.previewSprite = null;
     this.currentRunScore = 0;
     this.roundEnded = false;
+    this.placementRotation = 0;
+    this.gravityWells = [];
 
     const btn = document.getElementById('simulate-btn');
     if (btn) {
@@ -98,6 +108,7 @@ export class Game extends Scene {
     this.accumulator += delta;
 
     while (this.accumulator >= FIXED_DELTA) {
+      this.applyGravityWells();
       this.matter.world.step(FIXED_DELTA);
       this.accumulator -= FIXED_DELTA;
     }
@@ -151,8 +162,11 @@ export class Game extends Scene {
           ? { shape: { type: 'circle' as const, radius: 30 } }
           : {};
 
+    const isWell = piece.type === 'gravity_well';
+
     const sprite = this.matter.add.sprite(piece.x, piece.y, texKey, undefined, {
       isStatic: true,
+      isSensor: isWell,
       label: def.label,
       friction: def.friction,
       restitution: def.restitution,
@@ -168,6 +182,10 @@ export class Game extends Scene {
     sprite.setDepth(0);
 
     this.placedBodies.push({ piece, bodies: [sprite] });
+
+    if (isWell) {
+      this.gravityWells.push({ x: piece.x, y: piece.y, pullRadius: 120 });
+    }
   }
 
   private renderOwnPiece(piece: PlacedPiece): void {
@@ -192,9 +210,14 @@ export class Game extends Scene {
 
   private enterPlacementMode(): void {
     this.placementActive = true;
+    this.placementRotation = 0;
 
     this.input.on('pointermove', this.onPointerMove, this);
     this.input.on('pointerdown', this.onPointerDown, this);
+
+    if (this.input.keyboard) {
+      this.input.keyboard.on('keydown-R', this.onKeyR, this);
+    }
   }
 
   private exitPlacementMode(): void {
@@ -203,11 +226,25 @@ export class Game extends Scene {
     this.input.off('pointermove', this.onPointerMove, this);
     this.input.off('pointerdown', this.onPointerDown, this);
 
+    if (this.input.keyboard) {
+      this.input.keyboard.off('keydown-R', this.onKeyR, this);
+    }
+
     if (this.previewSprite) {
       this.previewSprite.destroy();
       this.previewSprite = null;
     }
   }
+
+  private onKeyR = (): void => {
+    if (!this.placementActive) return;
+
+    this.placementRotation += Math.PI / 4;
+
+    if (this.previewSprite) {
+      this.previewSprite.setRotation(this.placementRotation);
+    }
+  };
 
   private onPointerMove = (pointer: Phaser.Input.Pointer): void => {
     if (!this.placementActive || !this.userDailyPiece) return;
@@ -238,7 +275,7 @@ export class Game extends Scene {
         type: this.userDailyPiece,
         x,
         y,
-        rotation: 0,
+        rotation: this.placementRotation,
       });
 
       this.hasPlacedToday = true;
@@ -246,7 +283,7 @@ export class Game extends Scene {
         type: this.userDailyPiece,
         x,
         y,
-        rotation: 0,
+        rotation: this.placementRotation,
         userId: '',
       });
       this.exitPlacementMode();
@@ -374,6 +411,34 @@ export class Game extends Scene {
     const btn = document.getElementById('simulate-btn');
     if (btn) {
       btn.textContent = 'Reset';
+    }
+  }
+
+  private applyGravityWells(): void {
+    if (this.gravityWells.length === 0) return;
+
+    const pool = this.marblePool;
+    for (let i = 0; i < pool.getPoolSize(); i++) {
+      const marble = pool.getAt(i);
+      if (!marble || !marble.active) continue;
+
+      const body = marble.body as MatterJS.BodyType;
+      if (!body) continue;
+
+      for (const well of this.gravityWells) {
+        const dx = well.x - body.position.x;
+        const dy = well.y - body.position.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist > well.pullRadius || dist < 1) continue;
+
+        const strength = 0.0015;
+        const forceMag = strength / (dist * dist + 1);
+        const nx = dx / dist;
+        const ny = dy / dist;
+
+        body.force.x += nx * forceMag;
+        body.force.y += ny * forceMag;
+      }
     }
   }
 
