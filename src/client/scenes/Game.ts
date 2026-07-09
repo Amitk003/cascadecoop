@@ -1,7 +1,7 @@
 import { Scene } from 'phaser';
 import * as Phaser from 'phaser';
 import type { GameInitResponse, PlacedPiece, PieceKind } from '../../shared/api';
-import { fetchBoardState, fetchUserStatus, placePiece, fetchLeaderboard } from '../api';
+import { fetchBoardState, fetchUserStatus, placePiece, fetchLeaderboard, submitRunScore } from '../api';
 import { MarblePool } from '../physics/MarblePool';
 import { PIECE_DEFINITIONS } from '../physics/PieceTypes';
 
@@ -28,6 +28,8 @@ export class Game extends Scene {
   private hasPlacedToday: boolean = false;
   private placementActive: boolean = false;
   private previewSprite: Phaser.GameObjects.Sprite | null = null;
+  private currentRunScore: number = 0;
+  private roundEnded: boolean = false;
 
   constructor() {
     super('Game');
@@ -42,6 +44,8 @@ export class Game extends Scene {
     this.hasPlacedToday = false;
     this.placementActive = false;
     this.previewSprite = null;
+    this.currentRunScore = 0;
+    this.roundEnded = false;
 
     const btn = document.getElementById('simulate-btn');
     if (btn) {
@@ -99,6 +103,10 @@ export class Game extends Scene {
     }
 
     this.recycleOffscreenMarbles();
+
+    if (!this.roundEnded && this.marblePool.getActiveCount() === 0) {
+      void this.handleRoundEnd();
+    }
   }
 
   private async loadBoard(): Promise<void> {
@@ -325,6 +333,50 @@ export class Game extends Scene {
     }
   }
 
+  private updateScoreDisplay(): void {
+    const display = document.getElementById('score-display');
+    if (display) {
+      display.textContent = `Score: ${this.currentRunScore}`;
+    }
+  }
+
+  private async handleRoundEnd(): Promise<void> {
+    this.roundEnded = true;
+    this.isSimulating = false;
+
+    const score = this.currentRunScore;
+
+    const status = document.getElementById('placement-status');
+    if (status) {
+      if (score > 0) {
+        status.textContent = `Round complete! +${score} points`;
+        status.style.color = '#ffd700';
+      } else {
+        status.textContent = 'Round complete. No marbles scored.';
+        status.style.color = '#888';
+      }
+    }
+
+    if (score > 0) {
+      try {
+        await submitRunScore({ score });
+      } catch (err) {
+        console.error('Failed to submit score:', err);
+      }
+    }
+
+    const panel = document.getElementById('leaderboard-panel');
+    if (panel) {
+      panel.classList.add('visible');
+    }
+    await this.refreshLeaderboard();
+
+    const btn = document.getElementById('simulate-btn');
+    if (btn) {
+      btn.textContent = 'Reset';
+    }
+  }
+
   private wireLeaderboardToggle(): void {
     let toggle = document.getElementById('leaderboard-toggle');
     const panel = document.getElementById('leaderboard-panel');
@@ -430,6 +482,8 @@ export class Game extends Scene {
   }
 
   private setupCollisionHandler(): void {
+    const goalScores = [10, 25, 50, 100];
+
     this.matter.world.on('collisionstart', (event: { pairs: Array<{ bodyA: { label: string; gameObject?: Phaser.Physics.Matter.Image | null }; bodyB: { label: string; gameObject?: Phaser.Physics.Matter.Image | null } }> }) => {
       for (const pair of event.pairs) {
         const { bodyA, bodyB } = pair;
@@ -440,6 +494,12 @@ export class Game extends Scene {
         if (marbleBody && goalBody) {
           const marbleGO = marbleBody.gameObject;
           if (marbleGO && marbleGO.active) {
+            const goalIndex = parseInt(goalBody.label.replace('goal_', ''), 10);
+            const points = goalScores[goalIndex] ?? 10;
+
+            this.currentRunScore += points;
+            this.updateScoreDisplay();
+
             this.marblePool.release(marbleGO);
           }
         }
@@ -450,6 +510,10 @@ export class Game extends Scene {
   startSimulation(): void {
     this.accumulator = 0;
     this.isSimulating = true;
+    this.currentRunScore = 0;
+    this.roundEnded = false;
+
+    this.updateScoreDisplay();
 
     if (this.placementActive) {
       this.exitPlacementMode();
