@@ -22,9 +22,40 @@ export class Preloader extends Scene {
   }
 
   create() {
+    this.generateTextures();
     void this.fetchInitData().then((data) => {
       this.scene.start('MainMenu', { initData: data });
     });
+  }
+
+  private generateTextures(): void {
+    const g = this.add.graphics();
+
+    g.fillStyle(0xffd700, 1);
+    g.fillCircle(6, 6, 6);
+    g.generateTexture('marble', 12, 12);
+
+    g.fillStyle(0x8b4513, 1);
+    g.fillRect(0, 0, 120, 16);
+    g.generateTexture('piece_ramp', 120, 16);
+
+    g.fillStyle(0xff4444, 1);
+    g.fillCircle(20, 20, 20);
+    g.generateTexture('piece_bumper', 40, 40);
+
+    g.fillStyle(0x9b59b6, 1);
+    g.fillCircle(30, 30, 30);
+    g.generateTexture('piece_gravity_well', 60, 60);
+
+    g.fillStyle(0x3498db, 1);
+    g.fillRect(0, 0, 100, 8);
+    g.generateTexture('piece_slide', 100, 8);
+
+    g.fillStyle(0x555555, 1);
+    g.fillRect(0, 0, 40, 40);
+    g.generateTexture('piece_block', 40, 40);
+
+    g.destroy();
   }
 
   private async fetchInitData(): Promise<GameInitResponse> {
