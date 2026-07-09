@@ -1,12 +1,18 @@
 import { Scene } from 'phaser';
 import * as Phaser from 'phaser';
+import type { GameInitResponse } from '../../shared/api';
 
 export class Game extends Scene {
   private camera: Phaser.Cameras.Scene2D.Camera;
   private background: Phaser.GameObjects.Image;
+  private initData: GameInitResponse | null = null;
 
   constructor() {
     super('Game');
+  }
+
+  init(data: { initData: GameInitResponse }): void {
+    this.initData = data.initData;
   }
 
   create() {

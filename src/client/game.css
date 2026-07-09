@@ -23,3 +23,9 @@ body {
   inset: 0;
   pointer-events: none;
 }
+
+#simulate-btn,
+#piece-inventory,
+#score-display {
+  pointer-events: auto;
+}

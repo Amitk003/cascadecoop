@@ -5,7 +5,8 @@
     "tsBuildInfoFile": "../dist/types/client/tsconfig.tsbuildinfo",
     "customConditions": ["browser"],
     "rootDir": "../src/client",
-    "strictPropertyInitialization": false
+    "strictPropertyInitialization": false,
+    "noUnusedLocals": false
   },
   "include": ["../src/client/**/*"],
   "exclude": [],
