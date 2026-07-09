@@ -17,8 +17,6 @@ export class Preloader extends Scene {
   }
 
   preload() {
-    this.load.setPath('../assets');
-    this.load.image('logo', 'logo.png');
   }
 
   create() {
@@ -54,6 +52,25 @@ export class Preloader extends Scene {
     g.fillStyle(0x555555, 1);
     g.fillRect(0, 0, 40, 40);
     g.generateTexture('piece_block', 40, 40);
+
+    g.fillStyle(0x0a0a1a, 1);
+    g.fillRect(0, 0, 1024, 768);
+    for (let i = 0; i < 768; i += 32) {
+      g.fillStyle(0x111133, 0.3);
+      g.fillRect(0, i, 1024, 1);
+    }
+    g.generateTexture('background', 1024, 768);
+
+    g.fillStyle(0x1a1a2e, 1);
+    g.fillRoundedRect(0, 0, 280, 80, 12);
+    g.fillStyle(0xffd700, 1);
+    g.fillRect(20, 20, 240, 2);
+    g.fillRect(20, 58, 240, 2);
+    g.generateTexture('logo', 280, 80);
+
+    g.fillStyle(0xffd700, 1);
+    g.fillCircle(4, 4, 4);
+    g.generateTexture('particle_gold', 8, 8);
 
     g.destroy();
   }

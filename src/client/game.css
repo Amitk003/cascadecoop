@@ -291,3 +291,54 @@ body {
   padding: 16px 0;
   font-size: 13px;
 }
+
+#tutorial-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  pointer-events: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding-bottom: 120px;
+}
+
+.tutorial-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+}
+
+.tutorial-box {
+  position: relative;
+  background: #1a1a2e;
+  border: 1px solid #ffd700;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 280px;
+  text-align: center;
+  color: #fff;
+  box-shadow: 0 0 20px rgba(255, 215, 0, 0.3);
+}
+
+.tutorial-box p {
+  margin: 0 0 16px;
+  font-size: 15px;
+  line-height: 1.5;
+  color: #eee;
+}
+
+#tutorial-next-btn {
+  background: #ffd700;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 24px;
+  color: #1a1a2e;
+  font-weight: bold;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+#tutorial-next-btn:hover {
+  background: #f0c800;
+}

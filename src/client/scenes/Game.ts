@@ -4,12 +4,15 @@ import type { GameInitResponse, PlacedPiece, PieceKind } from '../../shared/api'
 import { fetchBoardState, fetchUserStatus, placePiece, fetchLeaderboard, submitRunScore } from '../api';
 import { MarblePool } from '../physics/MarblePool';
 import { PIECE_DEFINITIONS } from '../physics/PieceTypes';
+import { playPlacementSound, playScoreSound, playSimulationStartSound, playRoundEndSound } from '../utils/AudioManager';
 
 const FIXED_DELTA = 1000 / 60;
+const MAX_DELTA = 100;
 const SPAWN_ZONE_Y = 40;
 const GOAL_COUNT = 4;
 const BOARD_WIDTH = 800;
 const BOARD_HEIGHT = 600;
+const MARBLE_COUNT = 50;
 
 type PieceBody = {
   piece: PlacedPiece;
@@ -21,6 +24,11 @@ type GravityWellData = {
   y: number;
   pullRadius: number;
 };
+
+function usernameFromUserId(userId: string): string {
+  const parts = userId.split(':');
+  return parts.slice(1).join(':') || 'unknown';
+}
 
 export class Game extends Scene {
   private camera: Phaser.Cameras.Scene2D.Camera;
@@ -38,6 +46,12 @@ export class Game extends Scene {
   private roundEnded: boolean = false;
   private placementRotation: number = 0;
   private gravityWells: GravityWellData[] = [];
+  private spriteToUser: Map<Phaser.GameObjects.Sprite, string> = new Map();
+  private countdownInterval: ReturnType<typeof setInterval> | null = null;
+  private boardRefreshInterval: ReturnType<typeof setInterval> | null = null;
+  private tutorialActive: boolean = false;
+  private tutorialStep: number = 0;
+  private tutorialOverlay: HTMLDivElement | null = null;
 
   constructor() {
     super('Game');
@@ -56,6 +70,10 @@ export class Game extends Scene {
     this.roundEnded = false;
     this.placementRotation = 0;
     this.gravityWells = [];
+    this.spriteToUser = new Map();
+    this.stopCountdown();
+    this.stopBoardRefresh();
+    this.destroyTutorial();
 
     const btn = document.getElementById('simulate-btn');
     if (btn) {
@@ -107,7 +125,7 @@ export class Game extends Scene {
   override update(_time: number, delta: number): void {
     if (!this.isSimulating) return;
 
-    this.accumulator += delta;
+    this.accumulator += Math.min(delta, MAX_DELTA);
 
     while (this.accumulator >= FIXED_DELTA) {
       this.applyGravityWells();
@@ -135,6 +153,35 @@ export class Game extends Scene {
     }
   }
 
+  private async refreshBoard(): Promise<void> {
+    try {
+      const data = await fetchBoardState();
+      const existingIds = new Set(this.placedBodies.map((pb) => pb.piece.userId));
+      for (const piece of data.pieces) {
+        if (!existingIds.has(piece.userId)) {
+          this.renderPiece(piece);
+          existingIds.add(piece.userId);
+        }
+      }
+    } catch (e) {
+      console.debug('Board refresh failed:', e);
+    }
+  }
+
+  private startBoardRefresh(): void {
+    this.stopBoardRefresh();
+    this.boardRefreshInterval = setInterval(() => {
+      void this.refreshBoard();
+    }, 60000);
+  }
+
+  private stopBoardRefresh(): void {
+    if (this.boardRefreshInterval !== null) {
+      clearInterval(this.boardRefreshInterval);
+      this.boardRefreshInterval = null;
+    }
+  }
+
   private async loadUserStatus(): Promise<void> {
     try {
       const data = await fetchUserStatus();
@@ -146,6 +193,11 @@ export class Game extends Scene {
 
       if (!this.hasPlacedToday && this.userDailyPiece) {
         this.enterPlacementMode();
+      }
+
+      if (this.hasPlacedToday) {
+        this.startCountdown();
+        this.startBoardRefresh();
       }
     } catch (err) {
       console.error('Failed to load user status:', err);
@@ -191,6 +243,22 @@ export class Game extends Scene {
         .setStrokeStyle(1, 0x9b59b6, 0.3)
         .setDepth(-1);
     }
+
+    const displayName = usernameFromUserId(piece.userId);
+    this.spriteToUser.set(sprite, displayName);
+
+    sprite.setInteractive();
+    sprite.on('pointerover', () => {
+      if (this.isSimulating) return;
+      const status = document.getElementById('placement-status');
+      if (status) {
+        status.textContent = `${def.label} (placed by u/${displayName})`;
+        status.style.color = '#ccc';
+      }
+    });
+    sprite.on('pointerout', () => {
+      this.updatePlacementStatus();
+    });
   }
 
   private renderOwnPiece(piece: PlacedPiece): void {
@@ -228,10 +296,13 @@ export class Game extends Scene {
     if (this.input.keyboard) {
       this.input.keyboard.on('keydown-R', this.onKeyR, this);
     }
+
+    this.showTutorialStep(1);
   }
 
   private exitPlacementMode(): void {
     this.placementActive = false;
+    this.destroyTutorial();
 
     const rotateBtn = document.getElementById('rotate-btn');
     if (rotateBtn) {
@@ -304,6 +375,9 @@ export class Game extends Scene {
       this.exitPlacementMode();
       this.updatePlacementStatus();
       this.updateInventoryUI();
+      playPlacementSound();
+      this.startCountdown();
+      this.startBoardRefresh();
     } catch (err) {
       console.error('Failed to place piece:', err);
       const status = document.getElementById('placement-status');
@@ -345,9 +419,10 @@ export class Game extends Scene {
     if (this.isSimulating) {
       status.textContent = 'Simulation running';
       status.style.color = '#fff';
+    } else if (this.tutorialActive) {
+      return;
     } else if (this.hasPlacedToday) {
-      status.textContent = 'Come back tomorrow for a new piece';
-      status.style.color = '#888';
+      this.updateCountdownDisplay();
     } else if (this.userDailyPiece) {
       const def = PIECE_DEFINITIONS[this.userDailyPiece];
       const name = def?.label ?? this.userDailyPiece;
@@ -380,7 +455,8 @@ export class Game extends Scene {
             </div>`,
         )
         .join('');
-    } catch {
+    } catch (e) {
+      console.debug('Leaderboard refresh failed:', e);
       container.innerHTML = '<div class="leaderboard-empty">Failed to load</div>';
     }
   }
@@ -439,6 +515,10 @@ export class Game extends Scene {
     if (btn) {
       btn.textContent = 'Reset';
     }
+
+    playRoundEndSound();
+
+    await this.refreshBoard();
   }
 
   private applyGravityWells(): void {
@@ -628,12 +708,137 @@ export class Game extends Scene {
 
             this.currentRunScore += points;
             this.updateScoreDisplay();
+            this.spawnScoreParticles(parseInt(goalBody.label.replace('goal_', ''), 10));
+            playScoreSound();
 
             this.marblePool.release(marbleGO);
           }
         }
       }
     });
+  }
+
+  private spawnScoreParticles(goalIndex: number): void {
+    const goalWidth = BOARD_WIDTH / GOAL_COUNT;
+    const gx = goalWidth * goalIndex + goalWidth / 2;
+    const gy = BOARD_HEIGHT - 20;
+    const colors = [0x2ecc71, 0x3498db, 0xe74c3c, 0xf39c12];
+
+    for (let i = 0; i < 8; i++) {
+      const p = this.add.circle(gx, gy, 3, colors[goalIndex] ?? 0xffd700, 1);
+      p.setDepth(10);
+      this.tweens.add({
+        targets: p,
+        x: gx + Phaser.Math.Between(-60, 60),
+        y: gy + Phaser.Math.Between(-80, -20),
+        alpha: 0,
+        scale: 0,
+        duration: Phaser.Math.Between(400, 700),
+        ease: 'Power2',
+        onComplete: () => p.destroy(),
+      });
+    }
+  }
+
+  private startCountdown(): void {
+    this.stopCountdown();
+    this.countdownInterval = setInterval(() => {
+      this.updateCountdownDisplay();
+    }, 1000);
+    this.updateCountdownDisplay();
+  }
+
+  private stopCountdown(): void {
+    if (this.countdownInterval !== null) {
+      clearInterval(this.countdownInterval);
+      this.countdownInterval = null;
+    }
+  }
+
+  private updateCountdownDisplay(): void {
+    const status = document.getElementById('placement-status');
+    if (!status) return;
+
+    if (this.isSimulating || this.placementActive) return;
+
+    const now = new Date();
+    const utcMidnight = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() + 1));
+    const diffMs = utcMidnight.getTime() - now.getTime();
+    const hours = Math.floor(diffMs / 3600000);
+    const minutes = Math.floor((diffMs % 3600000) / 60000);
+    const seconds = Math.floor((diffMs % 60000) / 1000);
+    status.textContent = `Next board in: ${hours}h ${minutes}m ${seconds}s`;
+    status.style.color = '#888';
+  }
+
+  private showTutorialStep(step: number): void {
+    this.tutorialActive = true;
+    this.tutorialStep = step;
+    this.destroyTutorial();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'tutorial-overlay';
+
+    const steps = [
+      {
+        text: 'This is your daily piece! Tap the board to place it.',
+        highlight: 'piece-inventory',
+        pos: 'bottom',
+      },
+      {
+        text: 'Press R or tap Rotate to spin your piece before placing.',
+        highlight: 'rotate-btn',
+        pos: 'top',
+      },
+      {
+        text: 'Press Simulate to drop marbles and test your machine!',
+        highlight: 'simulate-btn',
+        pos: 'top',
+      },
+      {
+        text: 'Open the Leaderboard to see how you rank.',
+        highlight: 'leaderboard-toggle',
+        pos: 'bottom',
+      },
+    ];
+
+    const s = steps[step - 1];
+    if (!s) {
+      this.tutorialActive = false;
+      return;
+    }
+
+    overlay.innerHTML = `
+      <div class="tutorial-backdrop"></div>
+      <div class="tutorial-box">
+        <p>${s.text}</p>
+        <button id="tutorial-next-btn">${step < steps.length ? 'Next' : 'Got it!'}</button>
+      </div>
+    `;
+    document.getElementById('app')?.appendChild(overlay);
+    this.tutorialOverlay = overlay;
+
+    const nextBtn = document.getElementById('tutorial-next-btn');
+    if (nextBtn) {
+      const newBtn = nextBtn.cloneNode(true) as HTMLElement;
+      nextBtn.parentNode?.replaceChild(newBtn, nextBtn);
+      newBtn.addEventListener('click', () => {
+        if (step < steps.length) {
+          this.showTutorialStep(step + 1);
+        } else {
+          this.destroyTutorial();
+        }
+      });
+    }
+  }
+
+  private destroyTutorial(): void {
+    this.tutorialActive = false;
+    this.tutorialStep = 0;
+    if (this.tutorialOverlay) {
+      this.tutorialOverlay.remove();
+      this.tutorialOverlay = null;
+    }
   }
 
   startSimulation(): void {
@@ -648,11 +853,13 @@ export class Game extends Scene {
       this.exitPlacementMode();
     }
 
-    for (let i = 0; i < 50; i++) {
+    for (let i = 0; i < MARBLE_COUNT; i++) {
       const x = Phaser.Math.Between(100, BOARD_WIDTH - 100);
       const marble = this.marblePool.spawn(x, SPAWN_ZONE_Y);
       if (!marble) break;
     }
+
+    playSimulationStartSound();
   }
 
   stopSimulation(): void {
