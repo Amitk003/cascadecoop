@@ -160,3 +160,15 @@ export async function acquireLock(date: string, userId: string, ttlSeconds: numb
 export async function releaseLock(date: string, userId: string): Promise<void> {
   await redis.del(lockKey(date, userId));
 }
+
+export async function checkRateLimit(userId: string, limitSeconds: number = 2): Promise<boolean> {
+  const key = `ratelimit:${userId}`;
+  const exists = await redis.get(key);
+  if (exists) {
+    return false;
+  }
+  await redis.set(key, '1', {
+    expiration: new Date(Date.now() + limitSeconds * 1000),
+  });
+  return true;
+}

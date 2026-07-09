@@ -86,6 +86,7 @@ export class Game extends Scene {
     this.wireSimulateButton();
     this.wireLeaderboardToggle();
     this.wireRotateButton();
+    this.wireHelpButton();
 
     this.scale.on('resize', (gameSize: Phaser.Structs.Size) => {
       this.cameras.resize(gameSize.width, gameSize.height);
@@ -186,8 +187,8 @@ export class Game extends Scene {
 
     if (isWell) {
       this.gravityWells.push({ x: piece.x, y: piece.y, pullRadius: 120 });
-      this.add.circle(piece.x, piece.y, 120, 0x9b59b6, 0.03)
-        .setStrokeStyle(1, 0x9b59b6, 0.15)
+      this.add.circle(piece.x, piece.y, 120, 0x9b59b6, 0.08)
+        .setStrokeStyle(1, 0x9b59b6, 0.3)
         .setDepth(-1);
     }
   }
@@ -350,7 +351,7 @@ export class Game extends Scene {
     } else if (this.userDailyPiece) {
       const def = PIECE_DEFINITIONS[this.userDailyPiece];
       const name = def?.label ?? this.userDailyPiece;
-      status.textContent = `Tap the board to place your ${name}`;
+      status.textContent = `Tap to place your ${name}. Press R or tap Rotate to spin.`;
       status.style.color = '#2ecc71';
     } else {
       status.textContent = 'Loading...';
@@ -387,7 +388,11 @@ export class Game extends Scene {
   private updateScoreDisplay(): void {
     const display = document.getElementById('score-display');
     if (display) {
-      display.textContent = `Score: ${this.currentRunScore}`;
+      if (this.isSimulating) {
+        display.textContent = `Run: ${this.currentRunScore}`;
+      } else {
+        display.textContent = `Score: ${this.currentRunScore}`;
+      }
     }
   }
 
@@ -416,11 +421,19 @@ export class Game extends Scene {
       }
     }
 
-    const panel = document.getElementById('leaderboard-panel');
-    if (panel) {
-      panel.classList.add('visible');
+    const display = document.getElementById('score-display');
+    if (display) {
+      display.textContent = `Submitted: ${score}!`;
+      setTimeout(() => {
+        this.updateScoreDisplay();
+      }, 2000);
     }
-    await this.refreshLeaderboard();
+
+    const panel = document.getElementById('leaderboard-panel');
+    const wasVisible = panel?.classList.contains('visible');
+    if (wasVisible) {
+      await this.refreshLeaderboard();
+    }
 
     const btn = document.getElementById('simulate-btn');
     if (btn) {
@@ -493,6 +506,30 @@ export class Game extends Scene {
 
     btn.addEventListener('click', () => {
       this.onKeyR();
+    });
+  }
+
+  private wireHelpButton(): void {
+    let btn = document.getElementById('help-btn');
+    let closeBtn = document.getElementById('close-help-btn');
+    const modal = document.getElementById('help-modal');
+    const leaderboard = document.getElementById('leaderboard-panel');
+    if (!btn || !closeBtn || !modal) return;
+
+    const newBtn = btn.cloneNode(true) as HTMLElement;
+    btn.parentNode?.replaceChild(newBtn, btn);
+    btn = newBtn;
+
+    const newCloseBtn = closeBtn.cloneNode(true) as HTMLElement;
+    closeBtn.parentNode?.replaceChild(newCloseBtn, closeBtn);
+    closeBtn = newCloseBtn;
+
+    btn.addEventListener('click', () => {
+      modal.classList.remove('hidden');
+      if (leaderboard) leaderboard.classList.remove('visible');
+    });
+    closeBtn.addEventListener('click', () => {
+      modal.classList.add('hidden');
     });
   }
 

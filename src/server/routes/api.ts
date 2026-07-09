@@ -22,6 +22,7 @@ import {
   getLeaderboard,
   acquireLock,
   releaseLock,
+  checkRateLimit,
 } from '../core/storage';
 
 const VALID_TYPES: PieceKind[] = ['ramp', 'bumper', 'gravity_well', 'slide', 'block'];
@@ -66,7 +67,11 @@ api.get('/board/state', async (c) => {
 
 api.post('/board/place', async (c) => {
   try {
-    const userId = `${context.postId}:${await reddit.getCurrentUsername()}`;
+    const rawUsername = await reddit.getCurrentUsername();
+    const username = rawUsername
+      ? rawUsername.replace(/[^a-zA-Z0-9_-]/g, '')
+      : `anonymous_${context.postId!.slice(-6)}`;
+    const userId = `${context.postId}:${username}`;
     const date = todayDate();
     const body = await c.req.json<PlacePieceRequest>();
 
@@ -81,6 +86,11 @@ api.post('/board/place', async (c) => {
     }
     if (typeof body.rotation !== 'number' || !isFinite(body.rotation)) {
       return c.json({ status: 'error', message: 'Invalid piece rotation' }, 400);
+    }
+
+    const rateLimitAcquired = await checkRateLimit(userId, 2);
+    if (!rateLimitAcquired) {
+      return c.json({ status: 'error', message: 'Too many placement attempts. Please wait.' }, 429);
     }
 
     const acquired = await acquireLock(date, userId, 5);
@@ -147,7 +157,10 @@ api.get('/leaderboard', async (c) => {
 
 api.post('/score/submit', async (c) => {
   try {
-    const username = await reddit.getCurrentUsername();
+    const rawUsername = await reddit.getCurrentUsername();
+    const username = rawUsername
+      ? rawUsername.replace(/[^a-zA-Z0-9_-]/g, '')
+      : `anonymous_${context.postId!.slice(-6)}`;
     const date = todayDate();
     const body = await c.req.json<SubmitScoreRequest>();
 
@@ -155,7 +168,7 @@ api.post('/score/submit', async (c) => {
       return c.json({ status: 'error', message: 'Invalid score' }, 400);
     }
 
-    await submitScore(date, username ?? 'anonymous', body.score);
+    await submitScore(date, username, body.score);
 
     return c.json<SubmitScoreResponse>({ success: true });
   } catch (error) {
