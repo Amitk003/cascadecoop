@@ -136,6 +136,13 @@ export class Game extends Scene {
     if (!def) return;
 
     const texKey = `piece_${piece.type}`;
+    const shapeOptions =
+      piece.type === 'bumper'
+        ? { shape: { type: 'circle' as const, radius: 20 } }
+        : piece.type === 'gravity_well'
+          ? { shape: { type: 'circle' as const, radius: 30 } }
+          : {};
+
     const sprite = this.matter.add.sprite(piece.x, piece.y, texKey, undefined, {
       isStatic: true,
       label: def.label,
@@ -146,6 +153,7 @@ export class Game extends Scene {
         category: 0x0001,
         mask: 0x0002,
       },
+      ...shapeOptions,
     });
 
     sprite.setRotation(piece.rotation);
@@ -156,7 +164,6 @@ export class Game extends Scene {
 
   private renderOwnPiece(piece: PlacedPiece): void {
     this.renderPiece(piece);
-    this.placedBodies.push({ piece, bodies: [] });
 
     const def = PIECE_DEFINITIONS[piece.type];
     if (!def) return;
@@ -319,9 +326,13 @@ export class Game extends Scene {
   }
 
   private wireLeaderboardToggle(): void {
-    const toggle = document.getElementById('leaderboard-toggle');
+    let toggle = document.getElementById('leaderboard-toggle');
     const panel = document.getElementById('leaderboard-panel');
     if (!toggle || !panel) return;
+
+    const newToggle = toggle.cloneNode(true) as HTMLElement;
+    toggle.parentNode?.replaceChild(newToggle, toggle);
+    toggle = newToggle;
 
     toggle.addEventListener('click', async () => {
       const isVisible = panel.classList.toggle('visible');
