@@ -123,7 +123,7 @@ export async function addScoreToUser(userId: string, points: number): Promise<vo
 }
 
 export async function submitScore(date: string, username: string, score: number): Promise<void> {
-  await redis.zAdd(leaderboardKey(date), { score, member: username });
+  await redis.zIncrBy(leaderboardKey(date), username, score);
 }
 
 export async function getLeaderboard(

@@ -53,3 +53,11 @@ export type UserStatusResponse = {
 export type LeaderboardResponse = {
   entries: LeaderboardEntry[];
 };
+
+export type SubmitScoreRequest = {
+  score: number;
+};
+
+export type SubmitScoreResponse = {
+  success: true;
+};

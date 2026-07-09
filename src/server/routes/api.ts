@@ -7,6 +7,8 @@ import type {
   PlacePieceResponse,
   UserStatusResponse,
   LeaderboardResponse,
+  SubmitScoreRequest,
+  SubmitScoreResponse,
 } from '../../shared/api';
 import {
   getBoardState,
@@ -15,6 +17,7 @@ import {
   getUserProfile,
   ensureDailyPiece,
   consumeDailyPiece,
+  submitScore,
   getLeaderboard,
   acquireLock,
   releaseLock,
@@ -116,5 +119,20 @@ api.get('/leaderboard', async (c) => {
   } catch (error) {
     console.error('Leaderboard Error:', error);
     return c.json({ status: 'error', message: 'Failed to get leaderboard' }, 500);
+  }
+});
+
+api.post('/score/submit', async (c) => {
+  try {
+    const username = await reddit.getCurrentUsername();
+    const date = todayDate();
+    const body = await c.req.json<SubmitScoreRequest>();
+
+    await submitScore(date, username ?? 'anonymous', body.score);
+
+    return c.json<SubmitScoreResponse>({ success: true });
+  } catch (error) {
+    console.error('Score Submit Error:', error);
+    return c.json({ status: 'error', message: 'Failed to submit score' }, 500);
   }
 });

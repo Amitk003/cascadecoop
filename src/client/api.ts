@@ -5,6 +5,8 @@ import type {
   PlacePieceResponse,
   UserStatusResponse,
   LeaderboardResponse,
+  SubmitScoreRequest,
+  SubmitScoreResponse,
 } from '../shared/api';
 
 class ApiError extends Error {
@@ -50,6 +52,13 @@ export async function fetchUserStatus(): Promise<UserStatusResponse> {
 
 export async function fetchLeaderboard(): Promise<LeaderboardResponse> {
   return request<LeaderboardResponse>('/api/leaderboard');
+}
+
+export async function submitRunScore(body: SubmitScoreRequest): Promise<SubmitScoreResponse> {
+  return request<SubmitScoreResponse>('/api/score/submit', {
+    method: 'POST',
+    body: JSON.stringify(body),
+  });
 }
 
 export { ApiError };
