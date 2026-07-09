@@ -2,6 +2,8 @@ import { redis } from '@devvit/web/server';
 import type { BoardState, PlacedPiece, UserProfile, PieceKind } from '../../shared/api';
 
 const PIECE_KINDS: PieceKind[] = ['ramp', 'bumper', 'gravity_well', 'slide', 'block'];
+const MAX_PIECES = 200;
+const SEVEN_DAYS = 604800;
 
 function boardKey(date: string): string {
   return `board:${date}`;
@@ -46,9 +48,15 @@ export async function appendPiece(date: string, newPiece: PlacedPiece): Promise<
     const tx = await redis.watch(key);
     const raw = await redis.get(key);
     const state: BoardState = raw ? JSON.parse(raw) : { pieces: [], date };
+
+    if (state.pieces.length >= MAX_PIECES) {
+      throw new Error('Board is full');
+    }
+
     state.pieces.push(newPiece);
     await tx.multi();
     await tx.set(key, JSON.stringify(state));
+    await tx.expire(key, SEVEN_DAYS);
     const results = await tx.exec();
 
     if (results !== null) {
@@ -123,7 +131,11 @@ export async function addScoreToUser(userId: string, points: number): Promise<vo
 }
 
 export async function submitScore(date: string, username: string, score: number): Promise<void> {
-  await redis.zIncrBy(leaderboardKey(date), username, score);
+  const key = leaderboardKey(date);
+  const existing = await redis.zScore(key, username);
+  const best = existing !== undefined ? Math.max(existing, score) : score;
+  await redis.zAdd(key, { score: best, member: username });
+  await redis.expire(key, SEVEN_DAYS);
 }
 
 export async function getLeaderboard(
@@ -138,12 +150,11 @@ export async function getLeaderboard(
 }
 
 export async function acquireLock(date: string, userId: string, ttlSeconds: number = 5): Promise<boolean> {
-  const result = await redis.set(lockKey(date, userId), '1', { nx: true });
-  if (result !== null) {
-    await redis.expire(lockKey(date, userId), ttlSeconds);
-    return true;
-  }
-  return false;
+  const result = await redis.set(lockKey(date, userId), '1', {
+    nx: true,
+    expiration: new Date(Date.now() + ttlSeconds * 1000),
+  });
+  return result !== null;
 }
 
 export async function releaseLock(date: string, userId: string): Promise<void> {
