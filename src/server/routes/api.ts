@@ -9,6 +9,7 @@ import type {
   LeaderboardResponse,
   SubmitScoreRequest,
   SubmitScoreResponse,
+  PieceKind,
 } from '../../shared/api';
 import {
   getBoardState,
@@ -22,6 +23,10 @@ import {
   acquireLock,
   releaseLock,
 } from '../core/storage';
+
+const VALID_TYPES: PieceKind[] = ['ramp', 'bumper', 'gravity_well', 'slide', 'block'];
+const BOARD_WIDTH = 800;
+const BOARD_HEIGHT = 600;
 
 export const api = new Hono();
 
@@ -65,6 +70,19 @@ api.post('/board/place', async (c) => {
     const date = todayDate();
     const body = await c.req.json<PlacePieceRequest>();
 
+    if (typeof body.type !== 'string' || !VALID_TYPES.includes(body.type as PieceKind)) {
+      return c.json({ status: 'error', message: 'Invalid piece type' }, 400);
+    }
+    if (typeof body.x !== 'number' || !isFinite(body.x) || body.x < 0 || body.x > BOARD_WIDTH) {
+      return c.json({ status: 'error', message: 'Invalid piece position' }, 400);
+    }
+    if (typeof body.y !== 'number' || !isFinite(body.y) || body.y < 0 || body.y > BOARD_HEIGHT) {
+      return c.json({ status: 'error', message: 'Invalid piece position' }, 400);
+    }
+    if (typeof body.rotation !== 'number' || !isFinite(body.rotation)) {
+      return c.json({ status: 'error', message: 'Invalid piece rotation' }, 400);
+    }
+
     const acquired = await acquireLock(date, userId, 5);
     if (!acquired) {
       return c.json({ status: 'error', message: 'You have already placed a piece today' }, 429);
@@ -79,7 +97,7 @@ api.post('/board/place', async (c) => {
       }
 
       const piece = {
-        type: body.type,
+        type: body.type as PieceKind,
         x: body.x,
         y: body.y,
         rotation: body.rotation,
@@ -90,6 +108,11 @@ api.post('/board/place', async (c) => {
       await consumeDailyPiece(userId);
 
       return c.json<PlacePieceResponse>({ success: true });
+    } catch (error) {
+      if (error instanceof Error && error.message === 'Board is full') {
+        return c.json({ status: 'error', message: 'The board is full today' }, 400);
+      }
+      throw error;
     } finally {
       await releaseLock(date, userId);
     }
@@ -127,6 +150,10 @@ api.post('/score/submit', async (c) => {
     const username = await reddit.getCurrentUsername();
     const date = todayDate();
     const body = await c.req.json<SubmitScoreRequest>();
+
+    if (typeof body.score !== 'number' || !isFinite(body.score) || body.score < 0 || body.score > 10000) {
+      return c.json({ status: 'error', message: 'Invalid score' }, 400);
+    }
 
     await submitScore(date, username ?? 'anonymous', body.score);
 
