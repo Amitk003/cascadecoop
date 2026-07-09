@@ -1,6 +1,24 @@
 import { Hono } from 'hono';
 import { context, reddit } from '@devvit/web/server';
-import type { GameInitResponse } from '../../shared/api';
+import type {
+  GameInitResponse,
+  BoardStateResponse,
+  PlacePieceRequest,
+  PlacePieceResponse,
+  UserStatusResponse,
+  LeaderboardResponse,
+} from '../../shared/api';
+import {
+  getBoardState,
+  appendPiece,
+  todayDate,
+  getUserProfile,
+  ensureDailyPiece,
+  consumeDailyPiece,
+  getLeaderboard,
+  acquireLock,
+  releaseLock,
+} from '../core/storage';
 
 export const api = new Hono();
 
@@ -21,5 +39,82 @@ api.get('/init', async (c) => {
   } catch (error) {
     console.error('API Init Error:', error);
     return c.json({ status: 'error', message: 'Initialization failed' }, 400);
+  }
+});
+
+api.get('/board/state', async (c) => {
+  try {
+    const date = todayDate();
+    const state = await getBoardState(date);
+    return c.json<BoardStateResponse>({
+      pieces: state.pieces,
+      date: state.date,
+    });
+  } catch (error) {
+    console.error('Board State Error:', error);
+    return c.json({ status: 'error', message: 'Failed to get board state' }, 500);
+  }
+});
+
+api.post('/board/place', async (c) => {
+  try {
+    const userId = `${context.postId}:${await reddit.getCurrentUsername()}`;
+    const date = todayDate();
+    const body = await c.req.json<PlacePieceRequest>();
+
+    const acquired = await acquireLock(date, userId, 5);
+    if (!acquired) {
+      return c.json({ status: 'error', message: 'You have already placed a piece today' }, 429);
+    }
+
+    try {
+      const profile = await getUserProfile(userId);
+      const updated = await ensureDailyPiece(userId, profile);
+
+      if (!updated.dailyPiece || updated.dailyPiece !== body.type) {
+        return c.json({ status: 'error', message: 'You do not have this piece type today' }, 400);
+      }
+
+      const piece = {
+        type: body.type,
+        x: body.x,
+        y: body.y,
+        rotation: body.rotation,
+        userId,
+      };
+
+      await appendPiece(date, piece);
+      await consumeDailyPiece(userId);
+
+      return c.json<PlacePieceResponse>({ success: true });
+    } finally {
+      await releaseLock(date, userId);
+    }
+  } catch (error) {
+    console.error('Place Piece Error:', error);
+    return c.json({ status: 'error', message: 'Failed to place piece' }, 500);
+  }
+});
+
+api.get('/user/status', async (c) => {
+  try {
+    const userId = `${context.postId}:${await reddit.getCurrentUsername()}`;
+    const profile = await getUserProfile(userId);
+    const updated = await ensureDailyPiece(userId, profile);
+    return c.json<UserStatusResponse>({ profile: updated });
+  } catch (error) {
+    console.error('User Status Error:', error);
+    return c.json({ status: 'error', message: 'Failed to get user status' }, 500);
+  }
+});
+
+api.get('/leaderboard', async (c) => {
+  try {
+    const date = todayDate();
+    const entries = await getLeaderboard(date);
+    return c.json<LeaderboardResponse>({ entries });
+  } catch (error) {
+    console.error('Leaderboard Error:', error);
+    return c.json({ status: 'error', message: 'Failed to get leaderboard' }, 500);
   }
 });
