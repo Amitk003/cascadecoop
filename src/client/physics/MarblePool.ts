@@ -30,7 +30,7 @@ export class MarblePool {
 
       marble.setVisible(false);
       marble.setActive(false);
-      marble.setSensor(true);
+      marble.setStatic(true);
       this.pool.push(marble);
     }
   }
@@ -41,7 +41,7 @@ export class MarblePool {
         marble.setPosition(x, y);
         marble.setVisible(true);
         marble.setActive(true);
-        marble.setSensor(false);
+        marble.setStatic(false);
         this.activeCount++;
         return marble;
       }
@@ -50,11 +50,11 @@ export class MarblePool {
   }
 
   release(marble: Phaser.Physics.Matter.Image): void {
-    marble.setPosition(-100, -100);
+    marble.setStatic(true);
     marble.setVelocity(0, 0);
+    marble.setPosition(-100, -100);
     marble.setVisible(false);
     marble.setActive(false);
-    marble.setSensor(true);
     this.activeCount--;
   }
 
@@ -64,6 +64,10 @@ export class MarblePool {
         this.release(marble);
       }
     }
+  }
+
+  getAt(index: number): Phaser.Physics.Matter.Image | null {
+    return this.pool[index] ?? null;
   }
 
   getActiveCount(): number {

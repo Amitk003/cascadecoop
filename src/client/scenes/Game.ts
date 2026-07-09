@@ -25,6 +25,11 @@ export class Game extends Scene {
     this.initData = data.initData;
     this.accumulator = 0;
     this.isSimulating = false;
+
+    const btn = document.getElementById('simulate-btn');
+    if (btn) {
+      btn.textContent = 'Simulate';
+    }
   }
 
   create() {
@@ -71,15 +76,33 @@ export class Game extends Scene {
       this.matter.world.step(FIXED_DELTA);
       this.accumulator -= FIXED_DELTA;
     }
+
+    this.recycleOffscreenMarbles();
+  }
+
+  private recycleOffscreenMarbles(): void {
+    const pool = this.marblePool;
+    for (let i = 0; i < pool.getPoolSize(); i++) {
+      const marble = pool.getAt(i);
+      if (marble && marble.active && marble.y > BOARD_HEIGHT + 50) {
+        pool.release(marble);
+      }
+    }
   }
 
   private wireSimulateButton(): void {
     const btn = document.getElementById('simulate-btn');
-    if (btn) {
-      btn.addEventListener('click', () => {
+    if (!btn) return;
+
+    btn.addEventListener('click', () => {
+      if (this.isSimulating) {
+        this.stopSimulation();
+        btn.textContent = 'Simulate';
+      } else {
         this.startSimulation();
-      });
-    }
+        btn.textContent = 'Reset';
+      }
+    });
   }
 
   private setupBoundaries(): void {
@@ -87,7 +110,6 @@ export class Game extends Scene {
       { x: BOARD_WIDTH / 2, y: -10, w: BOARD_WIDTH + 20, h: 20 },
       { x: -10, y: BOARD_HEIGHT / 2, w: 20, h: BOARD_HEIGHT + 40 },
       { x: BOARD_WIDTH + 10, y: BOARD_HEIGHT / 2, w: 20, h: BOARD_HEIGHT + 40 },
-      { x: BOARD_WIDTH / 2, y: BOARD_HEIGHT + 10, w: BOARD_WIDTH + 20, h: 20 },
     ];
 
     for (const wall of walls) {
