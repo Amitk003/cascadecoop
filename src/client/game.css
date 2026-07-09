@@ -79,6 +79,72 @@ body {
   margin-left: auto;
 }
 
+#help-btn {
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 8px;
+  padding: 6px 14px;
+  font-size: 14px;
+  color: #fff;
+  cursor: pointer;
+  pointer-events: auto;
+}
+
+#help-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+
+#help-modal {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 30;
+  pointer-events: auto;
+}
+
+#help-modal.hidden {
+  display: none;
+}
+
+#help-content {
+  background: #1a1a2e;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 300px;
+  text-align: center;
+  color: #fff;
+}
+
+#help-content h2 {
+  margin: 0 0 16px;
+  color: #ffd700;
+}
+
+#help-content p {
+  margin: 8px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #ccc;
+}
+
+#close-help-btn {
+  background: #9b59b6;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 20px;
+  color: #fff;
+  cursor: pointer;
+  margin-top: 16px;
+}
+
+#close-help-btn:hover {
+  background: #8e44ad;
+}
+
 #leaderboard-toggle {
   background: rgba(0, 0, 0, 0.6);
   border: 1px solid rgba(255, 255, 255, 0.2);

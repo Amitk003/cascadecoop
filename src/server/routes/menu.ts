@@ -6,12 +6,13 @@ import { createPost } from '../core/post';
 export const menu = new Hono();
 
 menu.post('/post-create', async (c) => {
+  const { subredditName } = context;
   try {
     const post = await createPost();
 
     return c.json<UiResponse>(
       {
-        navigateTo: `https://reddit.com/r/${context.subredditName}/comments/${post.id}`,
+        navigateTo: `https://reddit.com/r/${subredditName}/comments/${post.id}`,
       },
       200
     );

@@ -6,6 +6,7 @@ import { createPost } from '../core/post';
 export const triggers = new Hono();
 
 triggers.post('/on-app-install', async (c) => {
+  const { subredditName } = context;
   try {
     const post = await createPost();
     const input = await c.req.json<OnAppInstallRequest>();
@@ -13,7 +14,7 @@ triggers.post('/on-app-install', async (c) => {
     return c.json<TriggerResponse>(
       {
         status: 'success',
-        message: `Post created in subreddit ${context.subredditName} with id ${post.id} (trigger: ${input.type})`,
+        message: `Post created in subreddit ${subredditName} with id ${post.id} (trigger: ${input.type})`,
       },
       200
     );
